@@ -1,3 +1,53 @@
+// Package id generates human-readable, memorable vanity identifiers from names and text.
+//
+// Unlike UUIDs or auto-incrementing integers, vanity IDs are short, professional-looking,
+// and easy to communicate verbally (e.g., "SBVH", "JDOE", "ACME").
+//
+// # Key Concepts
+//
+// The package supports three types of ID generation:
+//
+//  1. Vanity IDs: Generated from entity attributes (names, titles, etc.)
+//     - Contact IDs: "SBVH", "JDOE" from human names
+//     - Organization IDs: "ACME", "NASA" from company names
+//     - Role IDs: "SWE", "PM" from job titles
+//
+//  2. ASIDs (Application-Scoped IDs): Domain-specific structured identifiers
+//     - Job Description: "JD-ACME-SWE-NYC-A3B7"
+//     - Custom formats with prefix and suffix components
+//
+//  3. Random IDs: Cryptographically secure random identifiers when no seed is available
+//
+// # Design Philosophy
+//
+// Character exclusions: Excludes confusing characters (0/O, 1/I) for clear communication.
+// Collision handling: Automatically appends random suffixes when vanity IDs collide.
+// Entity-specific constraints: Different min/max lengths per entity type (contacts, orgs, roles).
+// Normalization: Converts unicode to ASCII, removes invalid characters, handles typos via NormalizeForLookup.
+//
+// # Thread Safety
+//
+// All exported functions are safe for concurrent use. Config changes via SetConfig
+// are protected by a mutex and affect subsequent ID generation calls.
+//
+// # Basic Usage
+//
+//	import "github.com/teranos/vanity-id"
+//
+//	// Generate contact ID from name
+//	contactID, err := id.GenerateContactID(
+//	    id.HumanContact{FirstName: "Jane", LastName: "Doe"},
+//	    reservedChecker,
+//	    putFunc,
+//	)
+//	// Result: "JDOE" or "JDOE2K" if collision occurs
+//
+//	// Generate organization ID
+//	orgID, err := id.GenerateOrganizationID("Acme Corp", reservedChecker, putFunc)
+//	// Result: "ACME" or similar
+//
+//	// Normalize user input for lookups (handles typos, case)
+//	normalized := id.NormalizeForLookup("jd0e")  // Returns "JDOE"
 package id
 
 import (
