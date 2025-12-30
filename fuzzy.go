@@ -6,27 +6,28 @@ import (
 
 // IsSimilar determines if two IDs are similar using fuzzy matching
 func IsSimilar(query, candidate string) bool {
-	queryLower := strings.ToLower(query)
-	candidateLower := strings.ToLower(candidate)
+	// Use NormalizeForLookup for consistent normalization (case + character mapping)
+	queryNorm := NormalizeForLookup(query)
+	candidateNorm := NormalizeForLookup(candidate)
 
 	// Skip exact matches (those would have been found already)
-	if queryLower == candidateLower {
+	if queryNorm == candidateNorm {
 		return false
 	}
 
 	// 1. Substring match - query appears in candidate
-	if strings.Contains(candidateLower, queryLower) {
+	if strings.Contains(candidateNorm, queryNorm) {
 		return true
 	}
 
 	// 2. Candidate starts with query (common for partial typing)
-	if strings.HasPrefix(candidateLower, queryLower) {
+	if strings.HasPrefix(candidateNorm, queryNorm) {
 		return true
 	}
 
 	// 3. Edit distance check for close matches (simple version)
 	if len(query) >= 3 && len(candidate) >= 3 {
-		return hasLowEditDistance(queryLower, candidateLower)
+		return hasLowEditDistance(queryNorm, candidateNorm)
 	}
 
 	return false
