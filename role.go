@@ -5,6 +5,114 @@ import (
 	"strings"
 )
 
+// roleExcludeWords are common words to exclude from role titles (case-insensitive)
+var roleExcludeWords = map[string]bool{
+	// Articles and prepositions
+	"THE": true, "A": true, "AN": true, "OF": true, "AND": true,
+	// Common connectors
+	"FOR": true, "TO": true, "IN": true, "AT": true, "BY": true,
+}
+
+// roleAbbreviations are common role abbreviations and mappings (case-insensitive)
+// These are industry-standard abbreviations
+var roleAbbreviations = map[string]string{
+	// Exact role matches (highest priority)
+	"SOFTWARE ENGINEER":         "SWE",
+	"PRODUCT MANAGER":           "PM",
+	"DATA SCIENTIST":            "DS",
+	"ENGINEERING MANAGER":       "EM",
+	"TECHNICAL PROGRAM MANAGER": "TPM",
+	"PROGRAM MANAGER":           "PGM",
+	"BACKEND DEVELOPER":         "BACKEND",
+	"FRONTEND DEVELOPER":        "FRONTEND",
+	"FULL STACK DEVELOPER":      "FULLSTACK",
+	"DEVOPS ENGINEER":           "DEVOPS",
+	"SITE RELIABILITY ENGINEER": "SRE",
+	"MACHINE LEARNING ENGINEER": "MLE",
+	"QUALITY ASSURANCE":         "QA",
+	"BUSINESS ANALYST":          "BA",
+	"SYSTEMS ADMINISTRATOR":     "SYSADMIN",
+	"DATABASE ADMINISTRATOR":    "DBA",
+	"TECHNICAL WRITER":          "TECHWRITER",
+
+	// Function/role components
+	"ENGINEER":      "ENG",
+	"MANAGER":       "MGR",
+	"DIRECTOR":      "DIR",
+	"DEVELOPER":     "DEV",
+	"DESIGNER":      "DSGN",
+	"ARCHITECT":     "ARCH",
+	"ANALYST":       "ANLST",
+	"SPECIALIST":    "SPEC",
+	"COORDINATOR":   "COORD",
+	"CONSULTANT":    "CONSULT",
+	"ADMINISTRATOR": "ADMIN",
+	"TECHNICIAN":    "TECH",
+	"ASSOCIATE":     "ASSOC",
+	"ASSISTANT":     "ASST",
+
+	// Domain/technology areas
+	"SOFTWARE":       "SW",
+	"HARDWARE":       "HW",
+	"PRODUCT":        "PROD",
+	"ENGINEERING":    "ENG",
+	"TECHNOLOGY":     "TECH",
+	"INFORMATION":    "INFO",
+	"OPERATIONS":     "OPS",
+	"MARKETING":      "MKT",
+	"SALES":          "SALES",
+	"CUSTOMER":       "CUST",
+	"BUSINESS":       "BIZ",
+	"DEVELOPMENT":    "DEV",
+	"RESEARCH":       "RES",
+	"DESIGN":         "DSGN",
+	"QUALITY":        "QA",
+	"SECURITY":       "SEC",
+	"NETWORK":        "NET",
+	"SYSTEMS":        "SYS",
+	"DATABASE":       "DB",
+	"ANALYTICS":      "ANALYTICS",
+	"DATA":           "DATA",
+	"SCIENCE":        "SCI",
+	"MACHINE":        "ML",
+	"LEARNING":       "ML",
+	"ARTIFICIAL":     "AI",
+	"INTELLIGENCE":   "AI",
+	"CLOUD":          "CLOUD",
+	"INFRASTRUCTURE": "INFRA",
+	"PLATFORM":       "PLATFORM",
+	"MOBILE":         "MOBILE",
+	"WEB":            "WEB",
+	"BACKEND":        "BACKEND",
+	"FRONTEND":       "FRONTEND",
+	"FULLSTACK":      "FULLSTACK",
+	"FULL":           "FULL",
+	"STACK":          "STACK",
+
+	// Experience levels
+	"SENIOR":    "SR",
+	"JUNIOR":    "JR",
+	"STAFF":     "STF",
+	"PRINCIPAL": "PRIN",
+	"LEAD":      "LEAD",
+	"CHIEF":     "CHIEF",
+	"HEAD":      "HEAD",
+	"VICE":      "VP",
+	"PRESIDENT": "P",
+	"EXECUTIVE": "EXEC",
+	"OFFICER":   "O",
+}
+
+// rolePatterns are common role patterns that should be kept together
+var rolePatterns = []string{
+	"SOFTWARE ENGINEER", "PRODUCT MANAGER", "DATA SCIENTIST",
+	"ENGINEERING MANAGER", "BACKEND DEVELOPER", "FRONTEND DEVELOPER",
+	"FULL STACK DEVELOPER", "DEVOPS ENGINEER", "SITE RELIABILITY ENGINEER",
+	"MACHINE LEARNING ENGINEER", "QUALITY ASSURANCE", "BUSINESS ANALYST",
+	"TECHNICAL PROGRAM MANAGER", "PROGRAM MANAGER",
+	"SYSTEMS ADMINISTRATOR", "DATABASE ADMINISTRATOR",
+}
+
 // GenerateRoleID generates a vanity ID for a role using its title
 func GenerateRoleID(title string, checker ReservedWordsChecker, put func(id string) error) (string, error) {
 	seed := BuildRoleSeed(title)
@@ -16,104 +124,6 @@ func GenerateRoleID(title string, checker ReservedWordsChecker, put func(id stri
 func BuildRoleSeed(title string) string {
 	if title == "" {
 		return ""
-	}
-
-	// Common words to exclude from role titles (case-insensitive)
-	excludeWords := map[string]bool{
-		// Articles and prepositions
-		"THE": true, "A": true, "AN": true, "OF": true, "AND": true,
-		// Common connectors
-		"FOR": true, "TO": true, "IN": true, "AT": true, "BY": true,
-	}
-
-	// Common role abbreviations and mappings (case-insensitive)
-	// These are industry-standard abbreviations
-	roleAbbreviations := map[string]string{
-		// Exact role matches (highest priority)
-		"SOFTWARE ENGINEER":         "SWE",
-		"PRODUCT MANAGER":           "PM",
-		"DATA SCIENTIST":            "DS",
-		"ENGINEERING MANAGER":       "EM",
-		"TECHNICAL PROGRAM MANAGER": "TPM",
-		"PROGRAM MANAGER":           "PGM",
-		"BACKEND DEVELOPER":         "BACKEND",
-		"FRONTEND DEVELOPER":        "FRONTEND",
-		"FULL STACK DEVELOPER":      "FULLSTACK",
-		"DEVOPS ENGINEER":           "DEVOPS",
-		"SITE RELIABILITY ENGINEER": "SRE",
-		"MACHINE LEARNING ENGINEER": "MLE",
-		"QUALITY ASSURANCE":         "QA",
-		"BUSINESS ANALYST":          "BA",
-		"SYSTEMS ADMINISTRATOR":     "SYSADMIN",
-		"DATABASE ADMINISTRATOR":    "DBA",
-		"TECHNICAL WRITER":          "TECHWRITER",
-
-		// Function/role components
-		"ENGINEER":      "ENG",
-		"MANAGER":       "MGR",
-		"DIRECTOR":      "DIR",
-		"DEVELOPER":     "DEV",
-		"DESIGNER":      "DSGN",
-		"ARCHITECT":     "ARCH",
-		"ANALYST":       "ANLST",
-		"SPECIALIST":    "SPEC",
-		"COORDINATOR":   "COORD",
-		"CONSULTANT":    "CONSULT",
-		"ADMINISTRATOR": "ADMIN",
-		"TECHNICIAN":    "TECH",
-		"ASSOCIATE":     "ASSOC",
-		"ASSISTANT":     "ASST",
-
-		// Domain/technology areas
-		"SOFTWARE":       "SW",
-		"HARDWARE":       "HW",
-		"PRODUCT":        "PROD",
-		"ENGINEERING":    "ENG",
-		"TECHNOLOGY":     "TECH",
-		"INFORMATION":    "INFO",
-		"OPERATIONS":     "OPS",
-		"MARKETING":      "MKT",
-		"SALES":          "SALES",
-		"CUSTOMER":       "CUST",
-		"BUSINESS":       "BIZ",
-		"DEVELOPMENT":    "DEV",
-		"RESEARCH":       "RES",
-		"DESIGN":         "DSGN",
-		"QUALITY":        "QA",
-		"SECURITY":       "SEC",
-		"NETWORK":        "NET",
-		"SYSTEMS":        "SYS",
-		"DATABASE":       "DB",
-		"ANALYTICS":      "ANALYTICS",
-		"DATA":           "DATA",
-		"SCIENCE":        "SCI",
-		"MACHINE":        "ML",
-		"LEARNING":       "ML",
-		"ARTIFICIAL":     "AI",
-		"INTELLIGENCE":   "AI",
-		"CLOUD":          "CLOUD",
-		"INFRASTRUCTURE": "INFRA",
-		"PLATFORM":       "PLATFORM",
-		"MOBILE":         "MOBILE",
-		"WEB":            "WEB",
-		"BACKEND":        "BACKEND",
-		"FRONTEND":       "FRONTEND",
-		"FULLSTACK":      "FULLSTACK",
-		"FULL":           "FULL",
-		"STACK":          "STACK",
-
-		// Experience levels
-		"SENIOR":    "SR",
-		"JUNIOR":    "JR",
-		"STAFF":     "STF",
-		"PRINCIPAL": "PRIN",
-		"LEAD":      "LEAD",
-		"CHIEF":     "CHIEF",
-		"HEAD":      "HEAD",
-		"VICE":      "VP",
-		"PRESIDENT": "P",
-		"EXECUTIVE": "EXEC",
-		"OFFICER":   "O",
 	}
 
 	// Step 1: Check if entire title matches a common role
@@ -129,15 +139,6 @@ func BuildRoleSeed(title string) string {
 	}
 
 	// Step 2: Handle multi-word role phrases within the title
-	// Common role patterns that should be kept together
-	rolePatterns := []string{
-		"SOFTWARE ENGINEER", "PRODUCT MANAGER", "DATA SCIENTIST",
-		"ENGINEERING MANAGER", "BACKEND DEVELOPER", "FRONTEND DEVELOPER",
-		"FULL STACK DEVELOPER", "DEVOPS ENGINEER", "SITE RELIABILITY ENGINEER",
-		"MACHINE LEARNING ENGINEER", "QUALITY ASSURANCE", "BUSINESS ANALYST",
-		"TECHNICAL PROGRAM MANAGER", "PROGRAM MANAGER",
-		"SYSTEMS ADMINISTRATOR", "DATABASE ADMINISTRATOR",
-	}
 
 	processedTitle := upperTitle
 	replacements := make(map[string]string)
@@ -170,7 +171,7 @@ func BuildRoleSeed(title string) string {
 		}
 
 		// Skip excluded words
-		if excludeWords[word] {
+		if roleExcludeWords[word] {
 			continue
 		}
 
