@@ -5,6 +5,33 @@ import (
 	"strings"
 )
 
+// prefixRule defines a prefix pattern and its replacement
+type prefixRule struct {
+	prefix      string
+	minLen      int
+	replacement string
+}
+
+// orgPrefixRules defines prefix patterns for organization name processing
+// These are checked in order, so more specific prefixes should come first
+var orgPrefixRules = []prefixRule{
+	{"ELECTRO", 7, "EL"},
+	{"QUANTUM", 7, "Q"},
+	{"CRYPTO", 6, "CRYP"},
+	{"PHARMA", 5, "PH"},
+	{"NEURO", 5, "NEUR"},
+	{"MICRO", 5, "M"},
+	{"CYBER", 5, "CY"},
+	{"GENO", 4, "GEN"},
+	{"GENE", 4, "GEN"},
+	{"NANO", 4, "N"},
+	{"TELE", 4, "TEL"},
+	{"AUTO", 4, "AU"},
+	{"AERO", 4, "AIR"},
+	{"BIO", 3, "BIO"},
+	{"ECO", 3, "ECO"},
+}
+
 // GenerateOrganizationID generates a vanity ID for an organization using its name
 func GenerateOrganizationID(name string, checker ReservedWordsChecker, put func(id string) error) (string, error) {
 	seed := BuildOrganizationSeed(name)
@@ -123,38 +150,19 @@ func BuildOrganizationSeed(name string) string {
 			continue
 		}
 		// Check prefix patterns first (priority over exact matches)
-		if len(upperWord) >= 3 && strings.HasPrefix(upperWord, "BIO") {
-			processedWords = append(processedWords, "BIO")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "GENE") {
-			processedWords = append(processedWords, "GEN")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "GENO") {
-			processedWords = append(processedWords, "GEN")
-		} else if len(upperWord) >= 5 && strings.HasPrefix(upperWord, "NEURO") {
-			processedWords = append(processedWords, "NEUR")
-		} else if len(upperWord) >= 5 && strings.HasPrefix(upperWord, "PHARMA") {
-			processedWords = append(processedWords, "PH")
-		} else if len(upperWord) >= 6 && strings.HasPrefix(upperWord, "CRYPTO") {
-			processedWords = append(processedWords, "CRYP")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "NANO") {
-			processedWords = append(processedWords, "N")
-		} else if len(upperWord) >= 5 && strings.HasPrefix(upperWord, "MICRO") {
-			processedWords = append(processedWords, "M")
-		} else if len(upperWord) >= 5 && strings.HasPrefix(upperWord, "CYBER") {
-			processedWords = append(processedWords, "CY")
-		} else if len(upperWord) >= 7 && strings.HasPrefix(upperWord, "QUANTUM") {
-			processedWords = append(processedWords, "Q")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "TELE") {
-			processedWords = append(processedWords, "TEL")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "AUTO") {
-			processedWords = append(processedWords, "AU")
-		} else if len(upperWord) >= 4 && strings.HasPrefix(upperWord, "AERO") {
-			processedWords = append(processedWords, "AIR")
-		} else if len(upperWord) >= 3 && strings.HasPrefix(upperWord, "ECO") {
-			processedWords = append(processedWords, "ECO")
-		} else if len(upperWord) >= 7 && strings.HasPrefix(upperWord, "ELECTRO") {
-			processedWords = append(processedWords, "EL")
-		} else if acronym, exists := acronymWords[upperWord]; exists {
-			// Check if word should be converted to acronym
+		matched := false
+		for _, rule := range orgPrefixRules {
+			if len(upperWord) >= rule.minLen && strings.HasPrefix(upperWord, rule.prefix) {
+				processedWords = append(processedWords, rule.replacement)
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+		// Check if word should be converted to acronym
+		if acronym, exists := acronymWords[upperWord]; exists {
 			processedWords = append(processedWords, acronym)
 		} else {
 			processedWords = append(processedWords, word)

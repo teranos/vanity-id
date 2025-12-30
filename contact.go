@@ -165,16 +165,15 @@ func extractOptimalSegment(name string) string {
 func extractMeaningfulBigrams(name string) []string {
 	var segments []string
 	runes := []rune(name)
-	vowels := map[rune]bool{'A': true, 'E': true, 'I': true, 'O': true, 'U': true}
 
 	// Extract bigrams that maintain phonetic structure
 	for i := 0; i < len(runes)-1; i++ {
 		bigram := string(runes[i : i+2])
 
 		// Prefer consonant-vowel or vowel-consonant patterns
-		isCV := !vowels[runes[i]] && vowels[runes[i+1]]  // Consonant-Vowel
-		isVC := vowels[runes[i]] && !vowels[runes[i+1]]  // Vowel-Consonant
-		isCC := !vowels[runes[i]] && !vowels[runes[i+1]] // Consonant-Consonant
+		isCV := !isVowelRune(runes[i]) && isVowelRune(runes[i+1])  // Consonant-Vowel
+		isVC := isVowelRune(runes[i]) && !isVowelRune(runes[i+1])  // Vowel-Consonant
+		isCC := !isVowelRune(runes[i]) && !isVowelRune(runes[i+1]) // Consonant-Consonant
 
 		if isCV || isVC || (isCC && i == 0) { // CC only at start for names like "Christian"
 			segments = append(segments, bigram)
@@ -360,14 +359,13 @@ func generateNameAwareVowelVariations(baseID, firstName, lastName string, maxLen
 
 // extractVowelsFromNames extracts vowels from first and last name in order of appearance
 func extractVowelsFromNames(firstName, lastName string) []string {
-	vowelSet := map[rune]bool{'A': true, 'E': true, 'I': true, 'O': true, 'U': true, 'a': true, 'e': true, 'i': true, 'o': true, 'u': true}
 	var vowels []string
 	seen := make(map[string]bool)
 
 	// Process full name (first + last) to maintain vowel order from the actual name
 	fullName := firstName + lastName
 	for _, r := range fullName {
-		if vowelSet[r] {
+		if isVowelRune(r) && r != 'Y' && r != 'y' { // Exclude Y for name vowel extraction
 			vowel := strings.ToUpper(string(r))
 			if !seen[vowel] {
 				vowels = append(vowels, vowel)
@@ -394,9 +392,11 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 		return []string{baseID}
 	}
 
+	// Cache min length to avoid repeated calls
+	minLen := HumanContact.GetMinLength()
+
 	// PRIORITY 0: Use the baseID first if it's meaningful (like BOBJO)
-	contactMinLength := HumanContact.GetMinLength()
-	if len(baseID) >= contactMinLength && len(baseID) <= maxLength {
+	if len(baseID) >= minLen && len(baseID) <= maxLength {
 		// The baseID already combines meaningful parts from both names
 		variations = append(variations, baseID)
 	}
@@ -404,17 +404,7 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 	// PRIORITY 1: Create the most vowel-rich reconstruction from combined seed
 	fullNameReconstruction := createFullNameReconstruction(baseID, originalVowels, firstName, lastName, maxLength)
 	if fullNameReconstruction != "" && fullNameReconstruction != baseID {
-		// Avoid duplicates
-		found := false
-		for _, existing := range variations {
-			if existing == fullNameReconstruction {
-				found = true
-				break
-			}
-		}
-		if !found {
-			variations = append(variations, fullNameReconstruction)
-		}
+		variations = appendUnique(variations, fullNameReconstruction)
 	}
 
 	// PRIORITY 2: For very short names, add bigram variations
@@ -429,11 +419,10 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 			for _, bigram := range bigrams {
 				extended := bigram
 				// Add suffix to reach minimum length
-				contactMinLength := HumanContact.GetMinLength()
 				suffix := ""
 				if lastName != "" && len(baseID) > 2 {
 					remaining := baseID[2:]
-					neededChars := contactMinLength - len(extended)
+					neededChars := minLen - len(extended)
 					if len(remaining) >= neededChars {
 						suffix = remaining[:neededChars]
 					} else {
@@ -443,25 +432,15 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 				extended += suffix
 
 				// Pad if still needed
-				for len(extended) < contactMinLength && len(originalVowels) > 0 {
+				for len(extended) < minLen && len(originalVowels) > 0 {
 					extended += originalVowels[0]
 				}
-				for len(extended) < contactMinLength {
+				for len(extended) < minLen {
 					extended += "G"
 				}
 
-				if len(extended) >= contactMinLength && len(extended) <= maxLength {
-					// Avoid duplicates
-					found := false
-					for _, existing := range variations {
-						if existing == extended {
-							found = true
-							break
-						}
-					}
-					if !found {
-						variations = append(variations, extended)
-					}
+				if len(extended) >= minLen && len(extended) <= maxLength {
+					variations = appendUnique(variations, extended)
 				}
 			}
 		}
@@ -470,30 +449,11 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 	// PRIORITY 3: Create progressively vowel-reduced variations
 	progressiveVariations := createProgressiveVowelReduction(baseID, originalVowels, firstName, lastName, maxLength)
 	for _, variant := range progressiveVariations {
-		// Avoid duplicates
-		found := false
-		for _, existing := range variations {
-			if existing == variant {
-				found = true
-				break
-			}
-		}
-		if !found {
-			variations = append(variations, variant)
-		}
+		variations = appendUnique(variations, variant)
 	}
 
 	// PRIORITY 4: Ensure the consonant-only baseID is included as final fallback
-	found := false
-	for _, existing := range variations {
-		if existing == baseID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		variations = append(variations, baseID)
-	}
+	variations = appendUnique(variations, baseID)
 
 	return variations
 }
@@ -503,35 +463,36 @@ func generateVowelFirstReconstruction(baseID string, originalVowels []string, fi
 func createFullNameReconstruction(baseID string, originalVowels []string, firstName, lastName string, maxLength int) string {
 	// Strategy: Create the most name-like form by intelligently placing vowels
 
-	// PRIORITY 1: For short names (≤contactMinLength chars), try meaningful extensions
-	contactMinLength := HumanContact.GetMinLength()
-	if len(firstName) >= veryShortNameLength && len(firstName) <= contactMinLength {
+	// Cache min length to avoid repeated calls
+	minLen := HumanContact.GetMinLength()
+
+	// PRIORITY 1: For short names (≤minLen chars), try meaningful extensions
+	if len(firstName) >= veryShortNameLength && len(firstName) <= minLen {
 		firstNameUpper := strings.ToUpper(firstName)
 		validName := ConvertToCustomAlphabet(firstNameUpper)
-		minLength := contactMinLength // Contact IDs must be at least this many characters
 
-		if len(validName) >= minLength && len(validName) <= maxLength {
+		if len(validName) >= minLen && len(validName) <= maxLength {
 			// Perfect! The name meets length requirements as-is
 			return validName
-		} else if len(validName) >= veryShortNameLength && len(validName) < minLength {
+		} else if len(validName) >= veryShortNameLength && len(validName) < minLen {
 			// Name is valid but too short - extend with vowels instead of padding
 			extended := validName
 
 			// Strategy A: Add vowels from the original names
 			if len(originalVowels) > 0 {
 				vowelIndex := 0
-				for len(extended) < minLength && vowelIndex < len(originalVowels) {
+				for len(extended) < minLen && vowelIndex < len(originalVowels) {
 					extended += originalVowels[vowelIndex]
 					vowelIndex++
 				}
 			}
 
 			// Strategy B: Minimal fallback if still too short
-			for len(extended) < minLength {
+			for len(extended) < minLen {
 				extended += "E" // Use common vowel instead of repetitive padding
 			}
 
-			if len(extended) >= minLength && len(extended) <= maxLength {
+			if len(extended) >= minLen && len(extended) <= maxLength {
 				return extended
 			}
 		}
@@ -555,9 +516,8 @@ func createFullNameReconstruction(baseID string, originalVowels []string, firstN
 					extended := bigram
 					if lastName != "" && len(baseID) > 2 {
 						// Add from lastName portion of baseID
-						contactMinLength := HumanContact.GetMinLength()
 						remaining := baseID[2:]
-						neededChars := contactMinLength - len(extended)
+						neededChars := minLen - len(extended)
 						if len(remaining) >= neededChars {
 							extended += remaining[:neededChars]
 						} else {
@@ -566,15 +526,14 @@ func createFullNameReconstruction(baseID string, originalVowels []string, firstN
 					}
 
 					// Pad to minimum if still needed
-					contactMinLength := HumanContact.GetMinLength()
-					for len(extended) < contactMinLength && len(originalVowels) > 0 {
+					for len(extended) < minLen && len(originalVowels) > 0 {
 						extended += originalVowels[0]
 					}
-					for len(extended) < contactMinLength {
+					for len(extended) < minLen {
 						extended += "G"
 					}
 
-					if len(extended) >= contactMinLength && len(extended) <= maxLength {
+					if len(extended) >= minLen && len(extended) <= maxLength {
 						return extended
 					}
 				}
