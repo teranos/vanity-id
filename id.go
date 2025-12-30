@@ -378,6 +378,14 @@ func ConvertToCustomAlphabet(s string) string {
 	return result.String()
 }
 
+// NormalizeForLookup normalizes user input for ID lookups.
+// Converts to uppercase, maps confusing characters (0→O, 1→I),
+// and strips invalid characters. Useful for case-insensitive
+// and typo-tolerant ID searches.
+func NormalizeForLookup(input string) string {
+	return ConvertToCustomAlphabet(strings.ToUpper(input))
+}
+
 // padWithConsonants pads the cleaned seed with consonants from the original seed hash
 func padWithConsonants(cleaned, original string) string {
 	consonants := "BCDFGHJKMNPQRSTVWXYZ"
