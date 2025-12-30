@@ -363,3 +363,32 @@ func TestRetrospectiveConstraints(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeForLookup(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"lowercase to uppercase", "mike", "MIKE"},
+		{"mixed case", "MiKe", "MIKE"},
+		{"zero to O", "r0b0t", "ROBOT"},
+		{"one to I", "m1ke", "MIKE"},
+		{"mixed confusing chars", "r0b01", "ROBOI"},
+		{"strips hyphens", "jo-hn", "JOHN"},
+		{"strips spaces", "jo hn", "JOHN"},
+		{"strips special chars", "mike@123", "MIKEI23"},
+		{"already valid", "MIKE", "MIKE"},
+		{"empty string", "", ""},
+		{"only invalid chars", "---", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeForLookup(tt.input)
+			if result != tt.expected {
+				t.Errorf("NormalizeForLookup(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

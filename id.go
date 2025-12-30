@@ -378,6 +378,14 @@ func ConvertToCustomAlphabet(s string) string {
 	return result.String()
 }
 
+// NormalizeForLookup normalizes user input for ID lookups.
+// Converts to uppercase, maps confusing characters (0→O, 1→I),
+// and strips invalid characters. Useful for case-insensitive
+// and typo-tolerant ID searches.
+func NormalizeForLookup(input string) string {
+	return ConvertToCustomAlphabet(strings.ToUpper(input))
+}
+
 // padWithConsonants pads the cleaned seed with consonants from the original seed hash
 func padWithConsonants(cleaned, original string) string {
 	consonants := "BCDFGHJKMNPQRSTVWXYZ"
@@ -732,6 +740,24 @@ func insertVowelAtNaturalPositions(baseID, vowel string, maxLength int) []string
 
 // isVowel checks if a character is a vowel
 func isVowel(char string) bool {
-	vowels := "AEIOUY"
-	return strings.Contains(vowels, strings.ToUpper(char))
+	return isVowelRune(rune(strings.ToUpper(char)[0]))
+}
+
+// isVowelRune checks if a rune is a vowel (more efficient for rune-based operations)
+func isVowelRune(r rune) bool {
+	switch r {
+	case 'A', 'E', 'I', 'O', 'U', 'Y', 'a', 'e', 'i', 'o', 'u', 'y':
+		return true
+	}
+	return false
+}
+
+// appendUnique appends a string to a slice only if it doesn't already exist
+func appendUnique(slice []string, item string) []string {
+	for _, existing := range slice {
+		if existing == item {
+			return slice
+		}
+	}
+	return append(slice, item)
 }
