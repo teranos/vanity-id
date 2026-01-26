@@ -1,0 +1,44 @@
+[package]
+name = "vanity-id"
+version = "0.1.0"
+edition = "2021"
+description = "Human-readable, memorable vanity identifiers from names and text"
+license = "MIT"
+repository = "https://github.com/teranos/vanity-id"
+keywords = ["id", "identifier", "vanity", "human-readable"]
+categories = ["algorithms", "text-processing"]
+
+[dependencies]
+# Unicode normalization for ASCII transliteration
+unicode-normalization = "0.1"
+
+# Random number generation
+rand = "0.8"
+
+# SHA256 hashing for deterministic padding
+sha2 = "0.10"
+
+# UUID generation for ASID
+uuid = { version = "1.0", features = ["v4"] }
+
+# Thread-safe configuration
+parking_lot = "0.12"
+
+# Time handling for AlternativeID
+chrono = { version = "0.4", features = ["serde"] }
+
+# Serialization support
+serde = { version = "1.0", features = ["derive"] }
+
+# Lazy static initialization
+once_cell = "1.18"
+
+# Regex for pattern matching
+regex = "1.10"
+
+[dev-dependencies]
+# Testing utilities
+pretty_assertions = "1.4"
+
+[features]
+default = []
